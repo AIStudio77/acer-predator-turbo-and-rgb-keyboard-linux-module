@@ -45,6 +45,7 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/input.h>
 #include <linux/cdev.h>
 #include <linux/input/sparse-keymap.h>
@@ -2332,21 +2333,27 @@ static void acer_led_exit(void)
  */
 
 static ssize_t gkbbl_drv_write(struct file *file,
-		const char __user *buf, size_t count, loff_t *offset)
+                const char __user *buf, size_t count, loff_t *offset)
 {
-	u8 config_buf[GAMING_KBBL_CONFIG_LEN];
-	unsigned long err;
+        u8 config_buf[GAMING_KBBL_CONFIG_LEN];
 
-	if (count != GAMING_KBBL_CONFIG_LEN) {
-		pr_err("Invalid data given to gaming keyboard backlight");
-		return 0;
-	}
-	err = copy_from_user(config_buf, buf, GAMING_KBBL_CONFIG_LEN);
-	if (err < 0)
-		pr_err("Copying data from userspace failed with code: %lu\n", err);
+        if (count != GAMING_KBBL_CONFIG_LEN) {
+                pr_err("Invalid data given to gaming keyboard backlight\n");
+                return -EINVAL;
+        }
 
-	set_u8_array(config_buf, GAMING_KBBL_CONFIG_LEN, ACER_CAP_GAMINGKB);
-	return count;
+        memset(config_buf, 0, sizeof(config_buf));
+
+        if (copy_from_user(config_buf, buf, GAMING_KBBL_CONFIG_LEN) != 0) {
+                pr_err("Copying data from userspace failed\n");
+                memzero_explicit(config_buf, sizeof(config_buf));
+                return -EFAULT;
+        }
+
+        set_u8_array(config_buf, GAMING_KBBL_CONFIG_LEN, ACER_CAP_GAMINGKB);
+        memzero_explicit(config_buf, sizeof(config_buf));
+
+        return GAMING_KBBL_CONFIG_LEN;
 }
 
 
@@ -2435,32 +2442,27 @@ struct led_zone_set_param {
 
 static ssize_t gkbbl_static_drv_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
-	u8 config_buf[4]={0,0,0,0};
-	unsigned long err;
-	struct led_zone_set_param set_params;
-	struct acpi_buffer set_input;
-	err = copy_from_user(config_buf, buf, GAMING_KBBL_STATIC_CONFIG_LEN);
-	set_params = (struct led_zone_set_param) {
-		.zone = config_buf[0],
-		.red = config_buf[1],
-		.green = config_buf[2],
-		.blue = config_buf[3],
-	};
-	set_input = (struct acpi_buffer) {
-		sizeof(set_params),
-		&set_params
-	};
+        struct led_zone_set_param set_params = { 0 };
+        struct acpi_buffer set_input = {
+                sizeof(set_params),
+                &set_params
+        };
 
-	if (count != GAMING_KBBL_STATIC_CONFIG_LEN) {
-		pr_err("Invalid data given to gaming keyboard static backlight");
-		return 0;
-	}
+        if (count != GAMING_KBBL_STATIC_CONFIG_LEN) {
+                pr_err("Invalid data given to gaming keyboard static backlight\n");
+                return -EINVAL;
+        }
 
-	if (err < 0)
-		pr_err("Copying data from userspace failed with code: %lu\n", err);
+        if (copy_from_user(&set_params, buf, sizeof(set_params)) != 0) {
+                pr_err("Copying data from userspace failed\n");
+                memzero_explicit(&set_params, sizeof(set_params));
+                return -EFAULT;
+        }
 
-	wmi_evaluate_method( WMID_GUID4, 0, ACER_WMID_SET_GAMING_STATIC_LED_METHODID, &set_input, NULL);
-	return count;
+        wmi_evaluate_method(WMID_GUID4, 0, ACER_WMID_SET_GAMING_STATIC_LED_METHODID, &set_input, NULL);
+        memzero_explicit(&set_params, sizeof(set_params));
+
+        return GAMING_KBBL_STATIC_CONFIG_LEN;
 }
 
 
