@@ -2096,7 +2096,7 @@ static acpi_status WMID_gaming_set_u8_array(u8 array[], size_t array_size, u32 c
 	return WMI_gaming_execute_u8_array(method_id, array, array_size, NULL);
 }
 
-static acpi_status WMID_gaming_get_u64(u64 *value, u32 cap)
+static inline acpi_status WMID_gaming_get_u64(u64 *value, u32 cap)
 {
 	acpi_status status;
 	u64 result;
