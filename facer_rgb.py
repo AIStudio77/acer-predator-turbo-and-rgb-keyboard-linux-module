@@ -9,6 +9,11 @@ CHARACTER_DEVICE = "/dev/acer-gkbbl-0"
 PAYLOAD_SIZE_STATIC_MODE = 4
 CHARACTER_DEVICE_STATIC = "/dev/acer-gkbbl-static-0"
 
+
+def clamp(value: int, lower: int, upper: int) -> int:
+    """Ensure that the provided value fits into the device supported range."""
+    return max(lower, min(value, upper))
+
 CONFIG_DIRECTORY = str(Path.home()) + "/.config/predator/saved profiles"
 path = Path(CONFIG_DIRECTORY)
 path.mkdir(parents=True, exist_ok=True)
@@ -170,19 +175,21 @@ if args.save:
 if args.mode == 0:
     # Static coloring mode
     payload = [0] * PAYLOAD_SIZE_STATIC_MODE
-    if args.zone < 1 or args.zone > 8:
-        print("Invalid Zone ID entered! Possible values are: 1, 2, 3, 4 from left to right")
-    payload[0] = 1 << (args.zone - 1)
-    payload[1] = args.red
-    payload[2] = args.green
-    payload[3] = args.blue
+    zone = clamp(args.zone, 1, 4)
+    if zone != args.zone:
+        print("Zone out of range, clamping to nearest supported value (1-4)")
+
+    payload[0] = 1 << (zone - 1)
+    payload[1] = clamp(args.red, 0, 255)
+    payload[2] = clamp(args.green, 0, 255)
+    payload[3] = clamp(args.blue, 0, 255)
     with open(CHARACTER_DEVICE_STATIC, 'wb') as cd:
         cd.write(bytes(payload))
 
     # Tell WMI To use STATIC coloring
     # Dynamic coloring mode
     payload = [0] * PAYLOAD_SIZE
-    payload[2] = args.brightness
+    payload[2] = clamp(args.brightness, 0, 100)
     payload[9] = 1
     with open(CHARACTER_DEVICE, 'wb') as cd:
         cd.write(bytes(payload))
@@ -193,14 +200,14 @@ else:
     # Dynamic coloring mode
     payload = [0] * PAYLOAD_SIZE
     payload[0] = args.mode
-    payload[1] = args.speed
-    payload[2] = args.brightness
+    payload[1] = clamp(args.speed, 0, 255)
+    payload[2] = clamp(args.brightness, 0, 100)
     payload[3] = 8 if args.mode == 3 else 0
-    payload[4] = args.direction
-    payload[5] = args.red
-    payload[6] = args.green
-    payload[7] = args.blue
-    payload[9] = 1
+    payload[4] = clamp(args.direction, 1, 2)
+    payload[5] = clamp(args.red, 0, 255)
+    payload[6] = clamp(args.green, 0, 255)
+    payload[7] = clamp(args.blue, 0, 255)
+    payload[9] = 0
 
     with open(CHARACTER_DEVICE, 'wb') as cd:
         cd.write(bytes(payload))
