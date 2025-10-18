@@ -2265,25 +2265,23 @@ static acpi_status set_u32(u32 value, u32 cap)
 
 static acpi_status set_u8_array(u8 array[], size_t array_size, u32 cap)
 {
-	acpi_status status;
+        if (interface && (interface->capability & cap)) {
+                switch (interface->type) {
+                default:
+                        break;
+                }
+        }
 
-	if (interface->capability & cap) {
-		switch (interface->type) {
-		default:
-			return AE_BAD_PARAMETER;
-		}
-	} else if (gaming_interface->capability & cap) {
-		switch (gaming_interface->type) {
-		case ACER_WMID_GAMING:
-			status = WMID_gaming_set_u8_array(array, array_size, cap);
-			if (ACPI_FAILURE(status))
-				return status;
-			fallthrough;
-		default:
-			return AE_BAD_PARAMETER;
-		}
-	}
-	return AE_BAD_PARAMETER;
+        if (gaming_interface && (gaming_interface->capability & cap)) {
+                switch (gaming_interface->type) {
+                case ACER_WMID_GAMING:
+                        return WMID_gaming_set_u8_array(array, array_size, cap);
+                default:
+                        break;
+                }
+        }
+
+        return AE_BAD_PARAMETER;
 }
 
 static void __init acer_commandline_init(void)
